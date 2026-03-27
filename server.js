@@ -1,0 +1,39 @@
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+// 🔗 COLE SUA URL DO MONGODB AQUI
+mongoose.connect("SUA_URL_AQUI")
+.then(() => console.log("Banco conectado"))
+.catch(err => console.log(err));
+
+// 📦 Modelo
+const Animal = mongoose.model("Animal", {
+  nome: String,
+  especie: String,
+  porte: String,
+  descricao: String
+});
+
+// ➕ Cadastrar animal
+app.post("/animais", async (req, res) => {
+  const animal = new Animal(req.body);
+  await animal.save();
+  res.send("Animal salvo!");
+});
+
+// 📋 Listar animais
+app.get("/animais", async (req, res) => {
+  const animais = await Animal.find();
+  res.json(animais);
+});
+
+app.listen(3000, () => {
+  console.log("Servidor rodando em http://localhost:3000");
+});
+mongoose.connect("mongodb+srv://admin:rPzEgUuA7kbvCv_@cluster0.nsoensb.mongodb.net/")

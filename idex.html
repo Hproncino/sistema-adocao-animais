@@ -8,24 +8,12 @@
 
 <body>
 
-<header class="topo">
-<h1>🐾 Adote um Amigo</h1>
-
-<nav>
-<a href="#">Início</a>
-<a href="#">Animais</a>
-<a href="#">Quero Adotar</a>
-</nav>
-</header>
-
-<div class="conteudo">
-
-<h2>Sistema de Cadastro de Animais para Adoção</h2>
+<h1>Sistema de Cadastro de Animais para Adoção</h1>
 <p>Facilitar a adoção responsável de cães e gatos</p>
 
 <p id="contador"></p>
 
-<h3>Cadastrar novo animal</h3>
+<h2>Cadastrar novo animal</h2>
 
 <form id="formAnimal">
 
@@ -36,7 +24,13 @@
 <option value="gato">Gato</option>
 </select>
 
-<input type="text" id="porte" placeholder="Porte" required>
+<select id="porte" required>
+<option value="Pequeno">Pequeno</option>
+<option value="Médio">Médio</option>
+<option value="Grande">Grande</option>
+</select>
+
+<textarea id="descricao" placeholder="Descrição do animal"></textarea>
 
 <input type="file" id="foto" required>
 
@@ -44,15 +38,23 @@
 
 </form>
 
-<h3>Animais disponíveis</h3>
+<h2>Animais disponíveis</h2>
+
+<h3>Filtrar por espécie</h3>
 
 <button onclick="filtrar('todos')">Todos</button>
 <button onclick="filtrar('cao')">Cães</button>
 <button onclick="filtrar('gato')">Gatos</button>
 
+<h3>Filtrar por porte</h3>
+
+<button onclick="filtrarPorte('Pequeno')">Pequeno</button>
+<button onclick="filtrarPorte('Médio')">Médio</button>
+<button onclick="filtrarPorte('Grande')">Grande</button>
+
 <div class="container" id="listaAnimais"></div>
 
-<h3>Quero adotar</h3>
+<h2>Quero adotar</h2>
 
 <form id="formAdotante">
 
@@ -64,7 +66,12 @@
 
 </form>
 
-</div>
+<h2>Chat com o protetor</h2>
+
+<div id="chatBox" style="border:1px solid #ccc; padding:10px; height:200px; overflow-y:auto;"></div>
+
+<input type="text" id="mensagem" placeholder="Digite sua mensagem">
+<button onclick="enviarMensagem()">Enviar</button>
 
 <script src="script.js"></script>
 
