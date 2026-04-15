@@ -101,6 +101,43 @@ if (form) {
   });
 }
 
+const formAdotante = document.getElementById("formAdotante");
+if (formAdotante) {
+  formAdotante.addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const nomeAdotante = document.getElementById("nomeAdotante");
+    const telefoneAdotante = document.getElementById("telefoneAdotante");
+    const animalInteresse = document.getElementById("animalInteresse");
+
+    if (!nomeAdotante || !telefoneAdotante || !animalInteresse) {
+      alert("Não foi possível capturar os dados do formulário de interesse.");
+      return;
+    }
+
+    const payload = {
+      nome: nomeAdotante.value,
+      telefone: telefoneAdotante.value,
+      animalInteresse: animalInteresse.value,
+    };
+
+    try {
+      const res = await fetch(API + "/interesses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error();
+
+      formAdotante.reset();
+      alert("Interesse enviado com sucesso!");
+    } catch {
+      alert("Não foi possível registrar seu interesse agora. Tente novamente.");
+    }
+  });
+}
+
 function filtrar(tipo) {
   if (tipo === "todos") {
     mostrarAnimais();

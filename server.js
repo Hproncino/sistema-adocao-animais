@@ -23,6 +23,7 @@ const TAMANO_MAXIMO_IMAGEM = 2 * 1024 * 1024; // 2MB em bytes
 const TAMANHO_MAXIMO_NOME = 100;
 const TAMANHO_MAXIMO_DESCRICAO = 500;
 const TAMANHO_MINIMO_NOME = 3;
+const TAMANHO_MAXIMO_TELEFONE = 20;
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -61,12 +62,86 @@ async function initDb() {
         foto TEXT
       );
     `);
-    logger.info("Banco de dados inicializado - tabela 'animais' pronta");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS interesses_adocao (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(255) NOT NULL,
+        telefone VARCHAR(20) NOT NULL,
+        animal_interesse VARCHAR(255),
+        criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+    logger.info("Banco de dados inicializado - tabelas 'animais' e 'interesses_adocao' prontas");
   } catch (err) {
     logger.error("Erro ao inicializar banco de dados", err);
     throw err;
   }
 }
+
+app.post("/interesses", async (req, res) => {
+  try {
+    const { nome, telefone, animalInteresse } = req.body;
+
+    logger.info("POST /interesses - Recebido novo interesse de adoção");
+
+    if (typeof nome !== "string" || typeof telefone !== "string") {
+      logger.warn("POST /interesses - Tipos de dados inválidos", {
+        nome: typeof nome,
+        telefone: typeof telefone,
+      });
+      return res.status(400).json({
+        erro: "Campos 'nome' e 'telefone' devem ser strings.",
+      });
+    }
+
+    if (animalInteresse !== undefined && typeof animalInteresse !== "string") {
+      logger.warn("POST /interesses - animalInteresse inválido", {
+        animalInteresse: typeof animalInteresse,
+      });
+      return res.status(400).json({
+        erro: "Campo 'animalInteresse' deve ser string.",
+      });
+    }
+
+    const nomeTrimmed = nome.trim();
+    const telefoneTrimmed = telefone.trim();
+    const animalInteresseTrimmed = (animalInteresse || "").trim();
+
+    if (!nomeTrimmed || !telefoneTrimmed) {
+      logger.warn("POST /interesses - Campos obrigatórios vazios");
+      return res.status(400).json({
+        erro: "Campos 'nome' e 'telefone' não podem estar vazios.",
+      });
+    }
+
+    if (nomeTrimmed.length < TAMANHO_MINIMO_NOME || nomeTrimmed.length > TAMANHO_MAXIMO_NOME) {
+      logger.warn("POST /interesses - Nome fora do tamanho permitido");
+      return res.status(400).json({
+        erro: `Nome deve ter entre ${TAMANHO_MINIMO_NOME} e ${TAMANHO_MAXIMO_NOME} caracteres.`,
+      });
+    }
+
+    if (telefoneTrimmed.length > TAMANHO_MAXIMO_TELEFONE) {
+      logger.warn("POST /interesses - Telefone muito longo");
+      return res.status(400).json({
+        erro: `Telefone não pode exceder ${TAMANHO_MAXIMO_TELEFONE} caracteres.`,
+      });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO interesses_adocao (nome, telefone, animal_interesse)
+       VALUES ($1, $2, $3)
+       RETURNING id, nome, telefone, animal_interesse AS "animalInteresse", criado_em AS "criadoEm"`,
+      [nomeTrimmed, telefoneTrimmed, animalInteresseTrimmed || null]
+    );
+
+    logger.info(`POST /interesses - Interesse salvo com sucesso (ID: ${result.rows[0].id})`);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    logger.error("POST /interesses - Erro ao salvar interesse", err);
+    res.status(500).json({ erro: "Não foi possível salvar o interesse de adoção." });
+  }
+});
 
 app.post("/animais", async (req, res) => {
   try {
