@@ -5,7 +5,7 @@ const cors = require("cors");
 const { Pool } = require("pg");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const FRONTEND_DIR = path.resolve(__dirname, "../frontend");
 
 app.use(cors());
@@ -255,11 +255,38 @@ app.post("/animais", async (req, res) => {
 
 app.get("/animais", async (req, res) => {
   try {
-    logger.info("GET /animais - Listando animais");
+    const especie = typeof req.query.especie === "string" ? req.query.especie.trim() : "";
+    const porte = typeof req.query.porte === "string" ? req.query.porte.trim() : "";
+    const nome = typeof req.query.nome === "string" ? req.query.nome.trim() : "";
+
+    logger.info("GET /animais - Listando animais", { especie, porte, nome });
+
+    const filtros = [];
+    const valores = [];
+
+    if (especie) {
+      valores.push(especie);
+      filtros.push(`LOWER(especie) = LOWER($${valores.length})`);
+    }
+
+    if (porte) {
+      valores.push(porte);
+      filtros.push(`LOWER(porte) = LOWER($${valores.length})`);
+    }
+
+    if (nome) {
+      valores.push(`%${nome}%`);
+      filtros.push(`nome ILIKE $${valores.length}`);
+    }
+
+    const whereClause = filtros.length > 0 ? `WHERE ${filtros.join(" AND ")}` : "";
+
     const result = await pool.query(
       `SELECT id, nome, especie, porte, descricao, foto
        FROM animais
-       ORDER BY id ASC`
+       ${whereClause}
+       ORDER BY id ASC`,
+      valores
     );
     logger.info(`GET /animais - Retornados ${result.rows.length} animal(is)`);
     res.json(result.rows);
@@ -312,10 +339,27 @@ app.get("/", (req, res) => {
 async function start() {
   try {
     await initDb();
-    app.listen(PORT, () => {
-      logger.info(`Servidor iniciado com sucesso em http://localhost:${PORT}`);
-      logger.info("PostgreSQL conectado e banco de dados pronto");
-    });
+
+    const iniciarServidor = (porta, tentativasRestantes = 5) => {
+      const server = app.listen(porta, () => {
+        logger.info(`Servidor iniciado com sucesso em http://localhost:${porta}`);
+        logger.info("PostgreSQL conectado e banco de dados pronto");
+      });
+
+      server.on("error", (err) => {
+        if (err && err.code === "EADDRINUSE" && tentativasRestantes > 0) {
+          const proximaPorta = porta + 1;
+          logger.warn(`Porta ${porta} em uso. Tentando porta ${proximaPorta}...`);
+          iniciarServidor(proximaPorta, tentativasRestantes - 1);
+          return;
+        }
+
+        logger.error("Falha ao iniciar servidor", err);
+        process.exit(1);
+      });
+    };
+
+    iniciarServidor(PORT);
   } catch (err) {
     if (err && err.code === "ENOTFOUND") {
       logger.error(

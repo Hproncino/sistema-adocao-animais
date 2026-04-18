@@ -1,7 +1,36 @@
 const origemAtual = window.location.origin || "";
-const API = origemAtual.includes("localhost:3000") || origemAtual.includes("127.0.0.1:3000")
-  ? origemAtual
-  : "http://localhost:3000";
+const CANDIDATAS_API = [origemAtual];
+
+for (let porta = 3000; porta <= 3010; porta += 1) {
+  CANDIDATAS_API.push("http://localhost:" + porta);
+  CANDIDATAS_API.push("http://127.0.0.1:" + porta);
+}
+
+const CANDIDATAS_API_UNICAS = CANDIDATAS_API.filter(function (url, idx, arr) {
+  return !!url && arr.indexOf(url) === idx;
+});
+
+let API = null;
+
+async function obterApiBase() {
+  if (API) return API;
+
+  for (let i = 0; i < CANDIDATAS_API_UNICAS.length; i += 1) {
+    const base = CANDIDATAS_API_UNICAS[i];
+    try {
+      const res = await fetch(base + "/health");
+      if (res.ok) {
+        API = base;
+        return API;
+      }
+    } catch (_) {
+      // Tenta a próxima URL candidata.
+    }
+  }
+
+  API = "http://localhost:3000";
+  return API;
+}
 
 let animais = [];
 
@@ -18,6 +47,11 @@ function atualizarContador() {
 function mostrarAnimais(listaFiltrada = animais) {
   if (!lista) return;
   lista.innerHTML = "";
+  if (!Array.isArray(listaFiltrada) || listaFiltrada.length === 0) {
+    lista.innerHTML = "<p>Nenhum animal encontrado para este filtro.</p>";
+    atualizarContador();
+    return;
+  }
   listaFiltrada.forEach(function (animal) {
     let card = document.createElement("div");
     card.className = "card";
@@ -55,7 +89,8 @@ async function removerAnimal(id) {
   if (!Number.isFinite(n) || n < 1) return;
   if (!confirm("Remover este animal da lista?")) return;
   try {
-    const res = await fetch(API + "/animais/" + n, { method: "DELETE" });
+    const apiBase = await obterApiBase();
+    const res = await fetch(apiBase + "/animais/" + n, { method: "DELETE" });
     if (!res.ok) throw new Error();
     await carregarAnimais();
   } catch {
@@ -81,7 +116,8 @@ if (form) {
     leitor.onload = async function (evento) {
       let imagemBase64 = evento.target.result;
       try {
-        const res = await fetch(API + "/animais", {
+        const apiBase = await obterApiBase();
+        const res = await fetch(apiBase + "/animais", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -125,7 +161,8 @@ if (formAdotante) {
     };
 
     try {
-      const res = await fetch(API + "/interesses", {
+      const apiBase = await obterApiBase();
+      const res = await fetch(apiBase + "/interesses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -146,23 +183,11 @@ async function filtrar(tipo) {
     await carregarAnimais();
     return;
   }
-  if (animais.length === 0) {
-    await carregarAnimais();
-  }
-  let filtrados = animais.filter(function (a) {
-    return a.especie === tipo;
-  });
-  mostrarAnimais(filtrados);
+  await carregarAnimais({ especie: tipo });
 }
 
 async function filtrarPorte(porte) {
-  if (animais.length === 0) {
-    await carregarAnimais();
-  }
-  let filtrados = animais.filter(function (a) {
-    return a.porte === porte;
-  });
-  mostrarAnimais(filtrados);
+  await carregarAnimais({ porte: porte });
 }
 
 function enviarMensagem() {
@@ -177,14 +202,24 @@ function enviarMensagem() {
   campo.value = "";
 }
 
-async function carregarAnimais() {
+async function carregarAnimais(filtros = {}) {
   try {
-    const res = await fetch(API + "/animais");
+    const apiBase = await obterApiBase();
+    const params = new URLSearchParams();
+    if (filtros.especie) params.append("especie", filtros.especie);
+    if (filtros.porte) params.append("porte", filtros.porte);
+    if (filtros.nome) params.append("nome", filtros.nome);
+
+    const url = params.toString() ? apiBase + "/animais?" + params.toString() : apiBase + "/animais";
+    const res = await fetch(url);
     if (!res.ok) throw new Error();
     animais = await res.json();
     mostrarAnimais();
   } catch (err) {
     console.error("Não foi possível carregar os animais do servidor.", err);
+    if (lista) {
+      lista.innerHTML = "<p>Não foi possível carregar os animais. Verifique se o servidor está rodando.</p>";
+    }
   }
 }
 
