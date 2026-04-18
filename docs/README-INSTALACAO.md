@@ -8,7 +8,7 @@ Este guia explica como instalar as tecnologias usadas no projeto Sistema de Ado√
 - Node.js (recomendado: vers√£o 18 ou superior)
 - PostgreSQL
 - npm (j√° vem com o Node.js)
-
+- dotenv
 ## 1. Instalar o Git
 
 1. Acesse: https://git-scm.com/downloads
@@ -20,12 +20,13 @@ Este guia explica como instalar as tecnologias usadas no projeto Sistema de Ado√
 git --version
 ```
 
-## 2. Instalar o Node.js e npm
+## 2. Instalar o Node.js, npm e dotenv
 
 1. Acesse: https://nodejs.org/
 2. Baixe a vers√£o LTS.
 3. Instale normalmente.
 4. Verifique no terminal:
+5. instale dotenv com: npm install dotenv
 
 ```bash
 node -v
