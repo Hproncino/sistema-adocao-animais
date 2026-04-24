@@ -55,8 +55,10 @@
 
   <form id="formAdotante">
     <input type="text" id="nomeAdotante" placeholder="Seu nome" required>
-    <input type="text" id="telefoneAdotante" placeholder="Telefone" required>
-    <input type="text" id="animalInteresse" placeholder="Animal de interesse">
+    <input type="text" id="telefoneAdotante" placeholder="Telefone (11) 91234-5678" maxlength="15" required>
+    <select id="animalInteresse" required>
+      <option value="" selected disabled>Selecione o animal de interesse</option>
+    </select>
 
     <button type="submit">Enviar interesse</button>
   </form>

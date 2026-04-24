@@ -36,6 +36,17 @@ let animais = [];
 
 const lista = document.getElementById("listaAnimais");
 const contador = document.getElementById("contador");
+const selectAnimalInteresse = document.getElementById("animalInteresse");
+
+function formatarTelefoneBrasil(valor) {
+  const digitos = String(valor || "").replace(/\D/g, "").slice(0, 11);
+  if (digitos.length <= 2) return digitos;
+  if (digitos.length <= 6) return "(" + digitos.slice(0, 2) + ") " + digitos.slice(2);
+  if (digitos.length <= 10) {
+    return "(" + digitos.slice(0, 2) + ") " + digitos.slice(2, 6) + "-" + digitos.slice(6);
+  }
+  return "(" + digitos.slice(0, 2) + ") " + digitos.slice(2, 7) + "-" + digitos.slice(7);
+}
 
 function atualizarContador() {
   if (contador) {
@@ -44,12 +55,42 @@ function atualizarContador() {
   }
 }
 
+function atualizarOpcoesAnimalInteresse() {
+  if (!selectAnimalInteresse) return;
+
+  selectAnimalInteresse.innerHTML = "";
+
+  const opcaoInicial = document.createElement("option");
+  opcaoInicial.value = "";
+  opcaoInicial.textContent = "Selecione o animal de interesse";
+  opcaoInicial.disabled = true;
+  opcaoInicial.selected = true;
+  selectAnimalInteresse.appendChild(opcaoInicial);
+
+  if (!Array.isArray(animais) || animais.length === 0) {
+    const opcaoVazia = document.createElement("option");
+    opcaoVazia.value = "";
+    opcaoVazia.textContent = "Nenhum animal cadastrado";
+    opcaoVazia.disabled = true;
+    selectAnimalInteresse.appendChild(opcaoVazia);
+    return;
+  }
+
+  animais.forEach(function (animal) {
+    const opcao = document.createElement("option");
+    opcao.value = animal.nome;
+    opcao.textContent = animal.nome;
+    selectAnimalInteresse.appendChild(opcao);
+  });
+}
+
 function mostrarAnimais(listaFiltrada = animais) {
   if (!lista) return;
   lista.innerHTML = "";
   if (!Array.isArray(listaFiltrada) || listaFiltrada.length === 0) {
     lista.innerHTML = "<p>Nenhum animal encontrado para este filtro.</p>";
     atualizarContador();
+    atualizarOpcoesAnimalInteresse();
     return;
   }
   listaFiltrada.forEach(function (animal) {
@@ -82,6 +123,7 @@ function mostrarAnimais(listaFiltrada = animais) {
     lista.appendChild(card);
   });
   atualizarContador();
+  atualizarOpcoesAnimalInteresse();
 }
 
 async function removerAnimal(id) {
@@ -176,6 +218,15 @@ if (formAdotante) {
       alert("Não foi possível registrar seu interesse agora. Tente novamente.");
     }
   });
+
+  const telefoneAdotanteInput = document.getElementById("telefoneAdotante");
+  if (telefoneAdotanteInput) {
+    telefoneAdotanteInput.addEventListener("input", function (e) {
+      const alvo = e.target;
+      if (!alvo) return;
+      alvo.value = formatarTelefoneBrasil(alvo.value);
+    });
+  }
 }
 
 async function filtrar(tipo) {

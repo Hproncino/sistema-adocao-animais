@@ -26,6 +26,28 @@ const TAMANHO_MAXIMO_DESCRICAO = 500;
 const TAMANHO_MINIMO_NOME = 3;
 const TAMANHO_MAXIMO_TELEFONE = 20;
 
+function formatarTelefone(telefone) {
+  const apenasDigitos = String(telefone || "").replace(/\D/g, "");
+
+  // Aceita números com DDI do Brasil e remove o prefixo 55 para formatar.
+  const digitosSemDdi =
+    apenasDigitos.length >= 12 &&
+    apenasDigitos.length <= 13 &&
+    apenasDigitos.startsWith("55")
+      ? apenasDigitos.slice(2)
+      : apenasDigitos;
+
+  if (digitosSemDdi.length === 11) {
+    return `(${digitosSemDdi.slice(0, 2)}) ${digitosSemDdi.slice(2, 7)}-${digitosSemDdi.slice(7)}`;
+  }
+
+  if (digitosSemDdi.length === 10) {
+    return `(${digitosSemDdi.slice(0, 2)}) ${digitosSemDdi.slice(2, 6)}-${digitosSemDdi.slice(6)}`;
+  }
+
+  return null;
+}
+
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   console.error(
@@ -120,8 +142,16 @@ app.post("/interesses", async (req, res) => {
       });
     }
 
-    if (telefoneTrimmed.length > TAMANHO_MAXIMO_TELEFONE) {
-      logger.warn("POST /interesses - Telefone muito longo");
+    const telefoneFormatado = formatarTelefone(telefoneTrimmed);
+    if (!telefoneFormatado) {
+      logger.warn("POST /interesses - Telefone inválido");
+      return res.status(400).json({
+        erro: "Telefone inválido. Use um número com DDD no padrão brasileiro.",
+      });
+    }
+
+    if (telefoneFormatado.length > TAMANHO_MAXIMO_TELEFONE) {
+      logger.warn("POST /interesses - Telefone formatado muito longo");
       return res.status(400).json({
         erro: `Telefone não pode exceder ${TAMANHO_MAXIMO_TELEFONE} caracteres.`,
       });
@@ -131,7 +161,7 @@ app.post("/interesses", async (req, res) => {
       `INSERT INTO interesses_adocao (nome, telefone, animal_interesse)
        VALUES ($1, $2, $3)
        RETURNING id, nome, telefone, animal_interesse AS "animalInteresse", criado_em AS "criadoEm"`,
-      [nomeTrimmed, telefoneTrimmed, animalInteresseTrimmed || null]
+      [nomeTrimmed, telefoneFormatado, animalInteresseTrimmed || null]
     );
 
     logger.info(`POST /interesses - Interesse salvo com sucesso (ID: ${result.rows[0].id})`);
