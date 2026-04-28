@@ -3,51 +3,137 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Adoção de Animais</title>
+  <title>🐾 Sistema de Adoção de Animais</title>
   <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <h1>Sistema de Cadastro de Animais para Adoção</h1>
-  <p>Facilitar a adoção responsável de cães e gatos</p>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-logo">
+        <i class="fas fa-paw"></i> Adote um Amigo
+      </div>
+      <div class="nav-info">
+        <p id="contador" class="contador-badge"></p>
+      </div>
+    </div>
+  </nav>
 
-  <p id="contador"></p>
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>🐶 🐱 Encontre seu Novo Melhor Amigo</h1>
+      <p>Facilitar a adoção responsável de cães e gatos</p>
+    </div>
+  </section>
 
-  <h2>Cadastrar novo animal</h2>
+  <!-- Cadastro Section -->
+  <section class="container">
+    <div class="section-title">
+      <h2>➕ Cadastrar Novo Animal</h2>
+      <p>Ajude um animal a encontrar um lar</p>
+    </div>
 
-  <form id="formAnimal">
-    <input type="text" id="nome" placeholder="Nome do animal" required>
+    <form id="formAnimal" class="form-card">
+      <div class="form-group">
+        <input type="text" id="nome" placeholder="Nome do animal" required>
+      </div>
 
-    <select id="especie">
-      <option value="cao">Cão</option>
-      <option value="gato">Gato</option>
-    </select>
+      <div class="form-row">
+        <div class="form-group">
+          <select id="especie" required>
+            <option value="">Selecione a espécie</option>
+            <option value="cao">🐶 Cão</option>
+            <option value="gato">🐱 Gato</option>
+          </select>
+        </div>
 
-    <select id="porte" required>
-      <option value="Pequeno">Pequeno</option>
-      <option value="Médio">Médio</option>
-      <option value="Grande">Grande</option>
-    </select>
+        <div class="form-group">
+          <select id="porte" required>
+            <option value="">Selecione o porte</option>
+            <option value="Pequeno">Pequeno</option>
+            <option value="Médio">Médio</option>
+            <option value="Grande">Grande</option>
+          </select>
+        </div>
+      </div>
 
-    <textarea id="descricao" placeholder="Descrição do animal"></textarea>
+      <div class="form-group">
+        <textarea id="descricao" placeholder="Descrição do animal" rows="4"></textarea>
+      </div>
 
-    <input type="file" id="foto" required>
+      <div class="form-group">
+        <label for="foto" class="file-label">
+          <i class="fas fa-camera"></i> Selecionar Foto
+        </label>
+        <input type="file" id="foto" required>
+      </div>
 
-    <button type="submit">Cadastrar</button>
-  </form>
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Cadastrar Animal
+      </button>
+    </form>
+  </section>
 
-  <h2>Animais disponíveis</h2>
+  <!-- Filtros Section -->
+  <section class="container">
+    <div class="section-title">
+      <h2>🐾 Animais Disponíveis</h2>
+    </div>
 
-  <h3>Filtrar por espécie</h3>
+    <div class="filters-section">
+      <div class="filter-group">
+        <h3>Filtrar por Espécie</h3>
+        <div class="button-group">
+          <button class="btn btn-filter active" onclick="filtrar('todos')">Todos</button>
+          <button class="btn btn-filter" onclick="filtrar('cao')">🐶 Cães</button>
+          <button class="btn btn-filter" onclick="filtrar('gato')">🐱 Gatos</button>
+        </div>
+      </div>
 
-  <button onclick="filtrar('todos')">Todos</button>
-  <button onclick="filtrar('cao')">Cães</button>
-  <button onclick="filtrar('gato')">Gatos</button>
+      <div class="filter-group">
+        <h3>Filtrar por Porte</h3>
+        <div class="button-group">
+          <button class="btn btn-filter" onclick="filtrarPorte('Pequeno')">Pequeno</button>
+          <button class="btn btn-filter" onclick="filtrarPorte('Médio')">Médio</button>
+          <button class="btn btn-filter" onclick="filtrarPorte('Grande')">Grande</button>
+        </div>
+      </div>
+    </div>
 
-  <h3>Filtrar por porte</h3>
+    <!-- Lista de Animais -->
+    <div id="listaAnimais" class="lista-animais"></div>
+  </section>
 
-  <button onclick="filtrarPorte('Pequeno')">Pequeno</button>
-  <button onclick="filtrarPorte('Médio')">Médio</button>
-  <button onclick="filtrarPorte('Grande')">Grande</button>
+  <!-- Contato WhatsApp Section -->
+  <section class="container">
+    <div class="contact-whatsapp">
+      <div class="contact-content">
+        <h2>📱 Entre em Contato</h2>
+        <p>Tem dúvidas sobre algum animal? Entre em contato conosco pelo WhatsApp!</p>
+        <div class="contact-info">
+          <p><strong>Horário de atendimento:</strong> Segunda a Sexta, 9h às 18h</p>
+          <p><strong>Suporte:</strong> (11) 9XXXX-XXXX</p>
+        </div>
+        <a href="https://wa.me/5511999999999?text=Olá!%20Gostaria%20de%20saber%20mais%20sobre%20os%20animais%20disponíveis%20para%20adoção." target="_blank" class="btn btn-whatsapp">
+          <i class="fab fa-whatsapp"></i> Abrir WhatsApp
+        </a>
+      </div>
+      <div class="contact-image">
+        <i class="fas fa-comments"></i>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>&copy; 2026 Sistema de Adoção de Animais. Todos os direitos reservados. 🐾</p>
+  </footer>
+
+  <script src="assets/js/script.js"></script>
+</body>
+</html>
 
   <div class="container" id="listaAnimais"></div>
 
