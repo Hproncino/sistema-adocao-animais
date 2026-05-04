@@ -32,6 +32,60 @@ async function obterApiBase() {
   return API;
 }
 
+const AUTH_STORAGE_KEY = "saa_auth";
+
+function lerAuth() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+let auth = lerAuth();
+
+function salvarAuth(auth) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth));
+}
+
+function limparAuth() {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function authAdmin() {
+  return auth && auth.role === "admin";
+}
+
+const authStatus = document.getElementById("authStatus");
+const authLink = document.getElementById("authLink");
+const logoutBtn = document.getElementById("logoutBtn");
+const adminSection = document.getElementById("adminSection");
+
+function atualizarAuthUI() {
+  if (authStatus) {
+    authStatus.textContent = auth ? `Logado: ${auth.email} (${auth.role})` : "Visitante";
+  }
+  if (authLink) {
+    authLink.classList.toggle("is-hidden", !!auth);
+  }
+  if (logoutBtn) {
+    logoutBtn.classList.toggle("is-hidden", !auth);
+  }
+  if (adminSection) {
+    adminSection.classList.toggle("is-hidden", !authAdmin());
+  }
+}
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", function () {
+    limparAuth();
+    auth = null;
+    atualizarAuthUI();
+    mostrarAnimais();
+  });
+}
+
 let animais = [];
 
 const lista = document.getElementById("listaAnimais");
@@ -163,6 +217,14 @@ function mostrarAnimais(listaFiltrada = animais) {
     const imgHtml = animal.foto
       ? `<img src="${animal.foto}" alt="${animal.nome}">`
       : `<div class="sem-foto">Sem foto</div>`;
+    const botaoRemover = authAdmin()
+      ? `
+        <button type="button" class="btn btn-delete" data-remover-id="${animal.id}">
+          <i class="fas fa-trash"></i> Remover
+        </button>
+      `
+      : "";
+
     card.innerHTML = `
       ${imgHtml}
       <h3>${animal.nome}</h3>
@@ -176,10 +238,7 @@ function mostrarAnimais(listaFiltrada = animais) {
             <i class="fab fa-whatsapp"></i> Falar com o protetor
           </button>
         </a>
-
-        <button type="button" class="btn btn-delete" data-remover-id="${animal.id}">
-          <i class="fas fa-trash"></i> Remover
-        </button>
+        ${botaoRemover}
       </div>
     `;
     const btnRemover = card.querySelector("[data-remover-id]");
@@ -199,10 +258,19 @@ function mostrarAnimais(listaFiltrada = animais) {
 async function removerAnimal(id) {
   const n = Number(id);
   if (!Number.isFinite(n) || n < 1) return;
+  if (!authAdmin()) {
+    alert("Você não tem permissão para remover animais.");
+    return;
+  }
   if (!confirm("Remover este animal da lista?")) return;
   try {
     const apiBase = await obterApiBase();
-    const res = await fetch(apiBase + "/animais/" + n, { method: "DELETE" });
+    const res = await fetch(apiBase + "/animais/" + n, {
+      method: "DELETE",
+      headers: {
+        Authorization: auth ? `Bearer ${auth.token}` : "",
+      },
+    });
     if (!res.ok) throw new Error();
     await carregarAnimais();
   } catch {
@@ -214,6 +282,10 @@ const form = document.getElementById("formAnimal");
 if (form) {
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
+    if (!authAdmin()) {
+      alert("Você não tem permissão para cadastrar animais.");
+      return;
+    }
     let nome = document.getElementById("nome").value;
     let especie = document.getElementById("especie").value;
     let porte = document.getElementById("porte").value;
@@ -232,7 +304,10 @@ if (form) {
       const apiBase = await obterApiBase();
       const res = await fetch(apiBase + "/animais", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: auth ? `Bearer ${auth.token}` : "",
+        },
         body: JSON.stringify({
           nome,
           especie,
@@ -343,4 +418,5 @@ async function carregarAnimais(filtros = {}) {
   }
 }
 
+atualizarAuthUI();
 carregarAnimais();

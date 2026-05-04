@@ -17,6 +17,11 @@
       <div class="nav-info">
         <p id="contador" class="contador-badge"></p>
       </div>
+      <div class="nav-actions">
+        <span id="authStatus" class="auth-status"></span>
+        <a id="authLink" class="btn btn-secondary" href="login.html">Login</a>
+        <button id="logoutBtn" class="btn btn-secondary" type="button">Sair</button>
+      </div>
     </div>
   </nav>
 
@@ -29,7 +34,7 @@
   </section>
 
   <!-- Cadastro Section -->
-  <section class="container">
+  <section class="container admin-only" id="adminSection">
     <div class="section-title">
       <h2>➕ Cadastrar Novo Animal</h2>
       <p>Ajude um animal a encontrar um lar</p>

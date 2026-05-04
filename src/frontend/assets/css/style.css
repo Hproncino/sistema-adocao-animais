@@ -43,6 +43,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
 }
 
 .nav-logo {
@@ -60,6 +61,18 @@ body {
   padding: 0.5rem 1rem;
   border-radius: 50px;
   font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.auth-status {
+  color: var(--text-white);
   font-size: 0.9rem;
 }
 
@@ -222,6 +235,19 @@ textarea {
   justify-content: center;
 }
 
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-white);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 20px var(--shadow-yellow);
@@ -361,6 +387,10 @@ textarea {
 .btn-delete:hover {
   box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
   transform: translateY(-2px);
+}
+
+.is-hidden {
+  display: none !important;
 }
 
 /* ===== CHAT BOX ===== */

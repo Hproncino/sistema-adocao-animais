@@ -3,6 +3,7 @@ require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
+const crypto = require("crypto");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -25,6 +26,14 @@ const TAMANHO_MAXIMO_NOME = 100;
 const TAMANHO_MAXIMO_DESCRICAO = 500;
 const TAMANHO_MINIMO_NOME = 3;
 const TAMANHO_MAXIMO_TELEFONE = 20;
+const AUTH_SECRET = process.env.AUTH_SECRET || "dev-auth-secret-change";
+const TOKEN_TTL_SEGUNDOS = 60 * 60 * 12;
+const TAMANHO_MINIMO_SENHA = 6;
+const TAMANHO_MAXIMO_EMAIL = 255;
+
+if (!process.env.AUTH_SECRET) {
+  console.warn("[WARN] AUTH_SECRET nao definido. Usando segredo padrao de desenvolvimento.");
+}
 
 function formatarTelefone(telefone) {
   const apenasDigitos = String(telefone || "").replace(/\D/g, "");
@@ -46,6 +55,69 @@ function formatarTelefone(telefone) {
   }
 
   return null;
+}
+
+function base64UrlEncode(value) {
+  return Buffer.from(value)
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function base64UrlDecode(value) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padLength = (4 - (normalized.length % 4)) % 4;
+  const padded = normalized + "=".repeat(padLength);
+  return Buffer.from(padded, "base64").toString("utf8");
+}
+
+function hashSenha(senha, salt) {
+  return crypto.pbkdf2Sync(senha, salt, 100000, 64, "sha512").toString("hex");
+}
+
+function gerarToken(usuario) {
+  const payload = {
+    sub: usuario.id,
+    email: usuario.email,
+    role: usuario.role,
+    exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SEGUNDOS,
+  };
+  const payloadBase = base64UrlEncode(JSON.stringify(payload));
+  const assinatura = crypto
+    .createHmac("sha256", AUTH_SECRET)
+    .update(payloadBase)
+    .digest("hex");
+  return `${payloadBase}.${assinatura}`;
+}
+
+function validarToken(token) {
+  if (!token || typeof token !== "string") return null;
+  const partes = token.split(".");
+  if (partes.length !== 2) return null;
+
+  const [payloadBase, assinatura] = partes;
+  const assinaturaEsperada = crypto
+    .createHmac("sha256", AUTH_SECRET)
+    .update(payloadBase)
+    .digest("hex");
+  if (assinatura !== assinaturaEsperada) return null;
+
+  try {
+    const payload = JSON.parse(base64UrlDecode(payloadBase));
+    if (!payload || typeof payload.exp !== "number") return null;
+    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function emailValido(email) {
+  if (typeof email !== "string") return false;
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed || trimmed.length > TAMANHO_MAXIMO_EMAIL) return false;
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed);
 }
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -84,6 +156,16 @@ async function initDb() {
       );
     `);
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        senha_hash TEXT NOT NULL,
+        senha_salt TEXT NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'cliente',
+        criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS interesses_adocao (
         id SERIAL PRIMARY KEY,
         nome VARCHAR(255) NOT NULL,
@@ -92,12 +174,123 @@ async function initDb() {
         criado_em TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `);
-    logger.info("Banco de dados inicializado - tabelas 'animais' e 'interesses_adocao' prontas");
+    logger.info("Banco de dados inicializado - tabelas prontas");
   } catch (err) {
     logger.error("Erro ao inicializar banco de dados", err);
     throw err;
   }
 }
+
+async function garantirUsuarioAdmin() {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminSenha = process.env.ADMIN_PASSWORD;
+  if (!adminEmail || !adminSenha) return;
+
+  const emailNormalizado = adminEmail.trim().toLowerCase();
+  if (!emailValido(emailNormalizado)) {
+    logger.warn("ADMIN_EMAIL inválido. Usuário admin não foi criado.");
+    return;
+  }
+
+  const existente = await pool.query("SELECT id FROM usuarios WHERE email = $1", [emailNormalizado]);
+  if (existente.rows.length > 0) return;
+
+  const salt = crypto.randomBytes(16).toString("hex");
+  const senhaHash = hashSenha(adminSenha, salt);
+  await pool.query(
+    `INSERT INTO usuarios (email, senha_hash, senha_salt, role)
+     VALUES ($1, $2, $3, 'admin')`,
+    [emailNormalizado, senhaHash, salt]
+  );
+  logger.info("Usuário admin inicial criado com sucesso");
+}
+
+function exigirAuth(req, res, next) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const payload = validarToken(token);
+  if (!payload) {
+    return res.status(401).json({ erro: "Não autorizado." });
+  }
+  req.usuario = payload;
+  next();
+}
+
+function exigirAdmin(req, res, next) {
+  exigirAuth(req, res, () => {
+    if (req.usuario.role !== "admin") {
+      return res.status(403).json({ erro: "Permissão insuficiente." });
+    }
+    next();
+  });
+}
+
+app.post("/auth/register", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!emailValido(email)) {
+      return res.status(400).json({ erro: "Email inválido." });
+    }
+
+    if (typeof password !== "string" || password.length < TAMANHO_MINIMO_SENHA) {
+      return res.status(400).json({
+        erro: `Senha deve ter no mínimo ${TAMANHO_MINIMO_SENHA} caracteres.`,
+      });
+    }
+
+    const emailNormalizado = email.trim().toLowerCase();
+    const existente = await pool.query("SELECT id FROM usuarios WHERE email = $1", [emailNormalizado]);
+    if (existente.rows.length > 0) {
+      return res.status(409).json({ erro: "Email já cadastrado." });
+    }
+
+    const salt = crypto.randomBytes(16).toString("hex");
+    const senhaHash = hashSenha(password, salt);
+    const result = await pool.query(
+      `INSERT INTO usuarios (email, senha_hash, senha_salt, role)
+       VALUES ($1, $2, $3, 'cliente')
+       RETURNING id, email, role`,
+      [emailNormalizado, senhaHash, salt]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    logger.error("POST /auth/register - Erro ao cadastrar usuário", err);
+    res.status(500).json({ erro: "Não foi possível cadastrar usuário." });
+  }
+});
+
+app.post("/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!emailValido(email) || typeof password !== "string") {
+      return res.status(400).json({ erro: "Email ou senha inválidos." });
+    }
+
+    const emailNormalizado = email.trim().toLowerCase();
+    const result = await pool.query(
+      "SELECT id, email, senha_hash, senha_salt, role FROM usuarios WHERE email = $1",
+      [emailNormalizado]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ erro: "Credenciais inválidas." });
+    }
+
+    const usuario = result.rows[0];
+    const senhaHash = hashSenha(password, usuario.senha_salt);
+    if (senhaHash !== usuario.senha_hash) {
+      return res.status(401).json({ erro: "Credenciais inválidas." });
+    }
+
+    const token = gerarToken(usuario);
+    res.json({ token, role: usuario.role, email: usuario.email });
+  } catch (err) {
+    logger.error("POST /auth/login - Erro ao autenticar", err);
+    res.status(500).json({ erro: "Não foi possível autenticar." });
+  }
+});
 
 app.post("/interesses", async (req, res) => {
   try {
@@ -172,7 +365,7 @@ app.post("/interesses", async (req, res) => {
   }
 });
 
-app.post("/animais", async (req, res) => {
+app.post("/animais", exigirAdmin, async (req, res) => {
   try {
     const { nome, especie, porte, descricao, foto } = req.body;
 
@@ -337,7 +530,7 @@ app.get("/health", async (req, res) => {
   }
 });
 
-app.delete("/animais/:id", async (req, res) => {
+app.delete("/animais/:id", exigirAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     logger.info(`DELETE /animais/:id - Tentando remover animal ID: ${id}`);
@@ -369,6 +562,7 @@ app.get("/", (req, res) => {
 async function start() {
   try {
     await initDb();
+    await garantirUsuarioAdmin();
 
     const iniciarServidor = (porta, tentativasRestantes = 5) => {
       const server = app.listen(porta, () => {
