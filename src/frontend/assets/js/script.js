@@ -130,7 +130,7 @@ document.addEventListener("click", function (event) {
   if (auth) return;
   if (alvo.classList.contains("btn-filter")) return;
   if (alvo.dataset.public === "true") return;
-  if (alvo.id === "authLink" || alvo.id === "registerLink") return;
+  if (alvo.id === "authLink" || alvo.id === "registerLink" || alvo.id === "logoutBtn") return;
   event.preventDefault();
   event.stopImmediatePropagation();
   exigirLoginOuAvisar();
